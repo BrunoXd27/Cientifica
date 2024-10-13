@@ -13,6 +13,7 @@ namespace Cal_cienti
         public Cal()
         {
             InitializeComponent();
+            CheckForUpdates();
         }
 
         public double EvaluateExpression(string expression)
@@ -61,6 +62,59 @@ namespace Cal_cienti
                 return expression;
             }
             return expression;
+        }
+
+        private async void CheckForUpdates()
+        {
+            string currentVersion = "1.5.0"; // Versión actual de tu aplicación
+            string repoOwner = "BrunoXd27";
+            string repoName = "Cientifica";
+            string apiUrl = $"https://api.github.com/repos/{repoOwner}/{repoName}/releases/latest";
+
+            using (HttpClient client = new HttpClient())
+            {
+                client.DefaultRequestHeaders.UserAgent.TryParseAdd("request");
+                var response = await client.GetStringAsync(apiUrl);
+                dynamic release = Newtonsoft.Json.JsonConvert.DeserializeObject(response);
+                string latestVersion = release.tag_name;
+
+                if (latestVersion != currentVersion)
+                {
+                    Console.WriteLine("Nueva versión disponible: " + latestVersion);
+                    string downloadUrl = release.assets.browser_download_url;
+                    string tempFilePath = Path.Combine(Path.GetTempPath(), "Form1.cs");
+
+                    using (var downloadClient = new HttpClient())
+                    {
+                        var downloadResponse = await downloadClient.GetAsync(downloadUrl);
+                        using (var fs = new FileStream(tempFilePath, FileMode.Create))
+                        {
+                            await downloadResponse.Content.CopyToAsync(fs);
+                        }
+                    }
+
+                    // Cargar el nuevo ensamblado dinámicamente
+                    Assembly newAssembly = Assembly.LoadFile(tempFilePath);
+                    Type type = newAssembly.GetType("Cal_cienti.Cal"); // Reemplaza con el nombre del tipo que necesitas
+                    MethodInfo method = type.GetMethod("InitializeComponent"); // Reemplaza con el nombre del método que necesitas
+                    object instance = Activator.CreateInstance(type);
+                    method.Invoke(instance, null);
+
+                    RefreshUI();
+
+                    Console.WriteLine("Actualización aplicada sin reiniciar.");
+                }
+                else
+                {
+                    Console.WriteLine("Ya tienes la última versión.");
+                }
+            }
+        }
+
+        private void RefreshUI()
+        {
+            this.Controls.Clear();
+            InitializeComponent();
         }
 
         private void No_0_Click(object sender, EventArgs e)
